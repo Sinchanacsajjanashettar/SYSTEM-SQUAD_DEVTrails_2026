@@ -363,7 +363,9 @@ UPI Simulator
 
 ---
 Repository Architecture
+## Repository Architecture
 
+```
 GigShield-AI
 │
 ├── frontend/                 # React web application
@@ -402,7 +404,7 @@ GigShield-AI
 │
 ├── README.md                 # Project overview and documentation
 └── LICENSE
-
+```
 # Conclusion
 
 GigShield AI aims to create a smarter and more accessible insurance system for gig delivery workers.
