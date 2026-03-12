@@ -317,30 +317,40 @@ UPI Simulator
 ---
 
 # System Architecture
-Delivery Worker
-      |
-      v
-Frontend (React Web App)
-      |
-      v
-Backend API Server (Node.js / Express)
-      |
-      |------ AI Risk Engine (Python)
-      |
-      |------ Fraud Detection Module
-      |
-      |------ Disruption Monitoring
-      |        (Weather / AQI APIs)
-      |
-      v
-Claim Automation System
-      |
-      v
-Payment Simulation
-(Razorpay / UPI Mock)
-      |
-      v
-Database (MongoDB)
+          +-------------------+
+          |  Delivery Worker  |
+          +---------+---------+
+                    |
+                    v
+          +-------------------+
+          |   React Web App   |
+          +---------+---------+
+                    |
+                    v
+          +-------------------+
+          |  Node.js Backend  |
+          +----+----+----+----+
+               |    |    |
+               v    v    v
+        +--------+ +--------+ +-------------+
+        | AI Risk| | Fraud  | | Disruption  |
+        | Engine | |Detect  | | Monitoring  |
+        +--------+ +--------+ +-------------+
+                    |
+                    v
+          +-------------------+
+          | Claim Automation  |
+          +---------+---------+
+                    |
+                    v
+          +-------------------+
+          | Payment Simulator |
+          +---------+---------+
+                    |
+                    v
+             +-------------+
+             |  MongoDB    |
+             +-------------+
 ---
 
 # Future Enhancements
