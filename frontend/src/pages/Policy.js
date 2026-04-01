@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Umbrella, Wind, CloudRain, Zap, AlertCircle } from 'lucide-react';
+import { Umbrella, Wind, CloudRain, Zap, AlertCircle, Search, CheckCircle, AlertTriangle } from 'lucide-react';
 
 
 
@@ -18,6 +18,8 @@ const Policy = () => {
   const [premium, setPremium] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [zoneCheckCity, setZoneCheckCity] = useState('');
+  const [zoneCheckResult, setZoneCheckResult] = useState(null);
 
   useEffect(() => {
     const workerId = localStorage.getItem('workerId');
@@ -87,6 +89,36 @@ const Policy = () => {
     calculatePremium(updatedParams);
   };
 
+  const checkZoneStatus = (city) => {
+    // Safe zones list
+    const safeZones = [
+      'Whitefield', 'Bangalore South', 'Koramangala', 'Kormangala',
+      'Indiranagar', 'Jayanagar', 'Malleswaram', 'Banjara Hills',
+      'HSR Layout', 'BTM Layout', 'Bellandur', 'Sarjapur', 'Marathahalli',
+      'Yeshwanthpur', 'Vijayanagar', 'Ashok Nagar', 'Shivajinagar',
+      'MG Road', 'Brigade Road', 'Cubbon Park', 'Ulsoor', 'Frazer Town',
+      'Sadashivanagar', 'Cantonment', 'Vijay Nagar', 'RMZ Eco Space',
+      'Domlur', 'Lavelle Road', 'Church Street', 'Residency Road'
+    ];
+    
+    // Risky zones list
+    const riskyZones = [
+      'Bangalore North', 'ORR', 'Outer Ring Road', 'Bannerghatta', 'Electronic City'
+    ];
+
+    const normalizedCity = city.toLowerCase().trim();
+    const isSafe = safeZones.some(zone => zone.toLowerCase() === normalizedCity);
+    const isRisky = riskyZones.some(zone => zone.toLowerCase() === normalizedCity);
+
+    if (isSafe) {
+      setZoneCheckResult({ city, isSafe: true, message: '✅ SAFE ZONE - Get ₹2 discount!' });
+    } else if (isRisky) {
+      setZoneCheckResult({ city, isSafe: false, message: '⚠️ DANGER ZONE - High water logging risk' });
+    } else {
+      setZoneCheckResult({ city, isSafe: null, message: '❓ UNKNOWN ZONE - Not in database' });
+    }
+  };
+
   const handleCreatePolicy = async () => {
     if (!workerData?.workerId) {
       setError("Worker ID not found. Please register first.");
@@ -143,6 +175,73 @@ const Policy = () => {
       <p className="text-sm text-blue-100 mt-2">📊 Auto-adjusts based on risk thresholds • Powered by ML</p>
     </div>
 
+    {/* AI Features Display */}
+    <div className="grid md:grid-cols-2 gap-4">
+      {/* Safe Zone Discount */}
+      <div className="bg-green-50 border-2 border-green-400 p-6 rounded-xl">
+        <p className="text-sm font-bold text-green-700 mb-2">✅ SAFE ZONE DISCOUNT</p>
+        <p className="text-2xl font-bold text-green-900">-₹2/week</p>
+        <p className="text-xs text-green-700 mt-2">Applied for low water logging risk areas</p>
+      </div>
+
+      {/* Predictive Weather Coverage */}
+      <div className="bg-purple-50 border-2 border-purple-400 p-6 rounded-xl">
+        <p className="text-sm font-bold text-purple-700 mb-2">🌤️ EXTENDED COVERAGE</p>
+        <p className="text-2xl font-bold text-purple-900">Up to 16 hrs/day</p>
+        <p className="text-xs text-purple-700 mt-2">Dynamic hours based on weather predictions</p>
+      </div>
+    </div>
+
+    {/* 🆕 ZONE CHECKER */}
+    <div className="bg-indigo-50 border-2 border-indigo-400 p-6 rounded-2xl">
+      <h3 className="text-xl font-bold text-indigo-900 mb-4 flex items-center gap-2">
+        <Search className="text-indigo-600" size={24}/>
+        Check Zone Safety
+      </h3>
+      <div className="flex gap-3">
+        <input 
+          type="text"
+          placeholder="Enter city name (e.g., Koramangala, Indiranagar)..."
+          value={zoneCheckCity}
+          onChange={(e) => setZoneCheckCity(e.target.value)}
+          className="flex-1 p-3 border-2 border-indigo-300 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500"
+        />
+        <button 
+          onClick={() => checkZoneStatus(zoneCheckCity)}
+          className="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg transition"
+        >
+          Check
+        </button>
+      </div>
+      
+      {zoneCheckResult && (
+        <div className={`mt-4 p-4 rounded-lg flex gap-3 items-start ${
+          zoneCheckResult.isSafe === true 
+            ? 'bg-green-100 border-2 border-green-500' 
+            : zoneCheckResult.isSafe === false
+            ? 'bg-red-100 border-2 border-red-500'
+            : 'bg-yellow-100 border-2 border-yellow-500'
+        }`}>
+          {zoneCheckResult.isSafe === true && <CheckCircle className="text-green-600 flex-shrink-0" size={24}/>}
+          {zoneCheckResult.isSafe === false && <AlertTriangle className="text-red-600 flex-shrink-0" size={24}/>}
+          {zoneCheckResult.isSafe === null && <AlertCircle className="text-yellow-600 flex-shrink-0" size={24}/>}
+          <div>
+            <p className={`text-lg font-bold ${
+              zoneCheckResult.isSafe === true 
+                ? 'text-green-900' 
+                : zoneCheckResult.isSafe === false
+                ? 'text-red-900'
+                : 'text-yellow-900'
+            }`}>{zoneCheckResult.message}</p>
+            <p className="text-sm mt-1 font-semibold">
+              {zoneCheckResult.isSafe === true && "Your area gets automatic -₹2 discount on weekly premium!"}
+              {zoneCheckResult.isSafe === false && "This area has higher flooding risk - premium will reflect this."}
+              {zoneCheckResult.isSafe === null && "Add this area to safe zones list for verification."}
+            </p>
+          </div>
+        </div>
+      )}
+    </div>
 
       {error && (
         <div className="bg-red-50 border-l-4 border-red-600 p-4 rounded-lg text-red-900">

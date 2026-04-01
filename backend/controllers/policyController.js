@@ -181,22 +181,104 @@ exports.calculatePremium = async (req, res) => {
     // Safe zone discount: -₹2
     let aiAdjustment = 0;
     const locationProfile = {
+      // Safe Zones (low water logging risk) - ALL common Bangalore areas
       'Whitefield': { isSafe: true, discount: 2 },
       'Bangalore South': { isSafe: true, discount: 2 },
       'Koramangala': { isSafe: true, discount: 2 },
+      'Kormangala': { isSafe: true, discount: 2 },
+      'Indiranagar': { isSafe: true, discount: 2 },
+      'Jayanagar': { isSafe: true, discount: 2 },
+      'Malleswaram': { isSafe: true, discount: 2 },
+      'Banjara Hills': { isSafe: true, discount: 2 },
+      'HSR Layout': { isSafe: true, discount: 2 },
+      'BTM Layout': { isSafe: true, discount: 2 },
+      'Bellandur': { isSafe: true, discount: 2 },
+      'Sarjapur': { isSafe: true, discount: 2 },
+      'Marathahalli': { isSafe: true, discount: 2 },
+      'Yeshwanthpur': { isSafe: true, discount: 2 },
+      'Vijayanagar': { isSafe: true, discount: 2 },
+      'Ashok Nagar': { isSafe: true, discount: 2 },
+      'Shivajinagar': { isSafe: true, discount: 2 },
+      'MG Road': { isSafe: true, discount: 2 },
+      'Brigade Road': { isSafe: true, discount: 2 },
+      'Cubbon Park': { isSafe: true, discount: 2 },
+      'Ulsoor': { isSafe: true, discount: 2 },
+      'Frazer Town': { isSafe: true, discount: 2 },
+      'Sadashivanagar': { isSafe: true, discount: 2 },
+      'Cantonment': { isSafe: true, discount: 2 },
+      'Vijay Nagar': { isSafe: true, discount: 2 },
+      'RMZ Eco Space': { isSafe: true, discount: 2 },
+      'Domlur': { isSafe: true, discount: 2 },
+      'Lavelle Road': { isSafe: true, discount: 2 },
+      'Church Street': { isSafe: true, discount: 2 },
+      'Residency Road': { isSafe: true, discount: 2 },
+      // Risky Zones (high water logging risk)
       'Bangalore North': { isSafe: false, discount: 0 },
-      'ORR': { isSafe: false, discount: 0 }
+      'ORR': { isSafe: false, discount: 0 },
+      'Outer Ring Road': { isSafe: false, discount: 0 },
+      'Bannerghatta': { isSafe: false, discount: 0 },
+      'Electronic City': { isSafe: false, discount: 0 }
     };
 
-    const locationData = locationProfile[location];
+    // Case-insensitive location lookup (handles "Koramangala,Bangalore" format)
+    console.log("🔍 Original location:", location);
+    let normalizedLocation = location ? location.toLowerCase().trim() : '';
+    console.log("🔍 After lowercase:", normalizedLocation);
+    
+    // Extract area name if location includes city (e.g., "koramangala,bangalore" → "koramangala")
+    if (normalizedLocation.includes(',')) {
+      normalizedLocation = normalizedLocation.split(',')[0].trim();
+      console.log("🔍 After splitting:", normalizedLocation);
+    }
+    
+    const locationDataKey = Object.keys(locationProfile).find(key => 
+      key.toLowerCase() === normalizedLocation
+    );
+    console.log("🔍 Matched location key:", locationDataKey);
+    
+    const locationData = locationDataKey ? locationProfile[locationDataKey] : null;
+    console.log("🔍 Location data:", locationData);
+    
     if (locationData && locationData.isSafe) {
       aiAdjustment -= locationData.discount;
       breakdown.safeZoneDiscount = `-₹${locationData.discount} (safe zone)`;
       console.log(`  ✅ Safe Zone Adjustment: -₹${locationData.discount}`);
+    } else {
+      console.log(`  ⚠️  NOT a safe zone - no discount applied`);
     }
 
     // Final premium
     const finalWeeklyPremium = Math.max(100, weeklyPremium + aiAdjustment); // minimum ₹100
+
+    // ⭐ AI FEATURE 2: PREDICTIVE WEATHER → DYNAMIC COVERAGE HOURS
+    // Extend coverage hours if extreme weather predicted
+    let baseCoverageHours = 8;
+    let dynamicCoverageHours = 8;
+    const weatherReasons = [];
+
+    // If high rainfall predicted → extend coverage
+    if (rainfallThreshold !== undefined && rainfallThreshold > 60) {
+      dynamicCoverageHours = Math.min(dynamicCoverageHours + 2, 12);
+      weatherReasons.push("🌧️ Heavy rainfall predicted - extended to protect during wet conditions");
+    }
+
+    // If high AQI predicted → extend coverage (air quality emergencies)
+    if (aqiThreshold !== undefined && aqiThreshold > 350) {
+      dynamicCoverageHours = Math.min(dynamicCoverageHours + 2, 14);
+      weatherReasons.push("💨 Poor air quality predicted - extended coverage for health protection");
+    }
+
+    // If extreme heat predicted → extend coverage
+    if (heatThreshold !== undefined && heatThreshold > 45) {
+      dynamicCoverageHours = Math.min(dynamicCoverageHours + 3, 16);
+      weatherReasons.push("🔥 Extreme heat predicted - extended coverage for heat stress protection");
+    }
+
+    console.log("✅ Coverage Hours:", {
+      base: baseCoverageHours,
+      dynamic: dynamicCoverageHours,
+      reasons: weatherReasons
+    });
 
     console.log("✅ Phase 2 Premium Calculated:", {
       dailyIncome: dailyIncomeNum,
@@ -214,17 +296,29 @@ exports.calculatePremium = async (req, res) => {
       monthlyPremium: finalWeeklyPremium * 4,
       premiumPercentage,
       aiAdjustment,
+      safeZoneDiscount: locationData && locationData.isSafe ? locationData.discount : 0,
       riskProfile: premiumPercentage > 30 ? "HIGH" : premiumPercentage > 15 ? "MEDIUM" : "LOW",
       riskScore: premiumPercentage,
-      coverageHours: 16,
+      coverageHours: {
+        base: baseCoverageHours,
+        dynamic: dynamicCoverageHours,
+        extended: dynamicCoverageHours > baseCoverageHours,
+        reasons: weatherReasons
+      },
       breakdown: {
         dailyIncome: dailyIncomeNum,
         premiumPercentage: premiumPercentage + "%",
         dailyPremium: Math.round(dailyPremium),
         weeklyBasePremium: weeklyPremium,
+        safeZoneDiscount: locationData && locationData.isSafe ? `-₹${locationData.discount}` : "₹0",
         aiAdjustment,
         finalWeeklyPremium,
-        details: breakdown
+        details: breakdown,
+        aiFeatures: {
+          dynamicPricing: "AI adjusts premium based on risk factors",
+          safeZoneDiscount: locationData && locationData.isSafe ? `Applied ₹${locationData.discount} discount for safe zone` : "Not applicable",
+          predictiveWeather: dynamicCoverageHours > baseCoverageHours ? `Coverage extended to ${dynamicCoverageHours} hours/day` : "Standard coverage"
+        }
       }
     });
   } catch (error) {

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Activity, CloudRain, Wind, AlertCircle, TrendingUp, ShieldCheck, Zap, Thermometer, Gauge } from 'lucide-react';
+import { Activity, CloudRain, Wind, AlertCircle, TrendingUp, ShieldCheck, Zap, Thermometer, Gauge, PlayCircle } from 'lucide-react';
 
 const Dashboard = () => {
   const [workerName, setWorkerName] = useState('');
@@ -8,6 +8,8 @@ const Dashboard = () => {
   const [envData, setEnvData] = useState({ rain: 45, aqi: 180, temp: 32, congestion: 3, status: 'Normal' });
   const [claims, setClaims] = useState([]);
   const [stats, setStats] = useState({ totalClaims: 0, approvedClaims: 0, totalAmountPaid: 0 });
+  const [simulatingClaim, setSimulatingClaim] = useState(false);
+  const [claimMessage, setClaimMessage] = useState('');
 
   useEffect(() => {
     const name = localStorage.getItem('workerName') || 'Partner';
@@ -40,6 +42,55 @@ const Dashboard = () => {
     return () => clearInterval(interval);
   }, []);
 
+  // Simulate a claim trigger for demo
+  const simulateClaimTrigger = async (triggerType) => {
+    if (!workerId) {
+      setClaimMessage('❌ Worker ID not found');
+      return;
+    }
+
+    setSimulatingClaim(true);
+    const triggerData = {
+      'HEAVY_RAINFALL': { trigger: 'HEAVY_RAINFALL', value: 75, claimAmount: 300, coverage: 'Income Loss during Heavy Rain' },
+      'SEVERE_POLLUTION': { trigger: 'SEVERE_POLLUTION', value: 380, claimAmount: 250, coverage: 'Income Loss due to Air Pollution' },
+      'EXTREME_HEAT': { trigger: 'EXTREME_HEAT', value: 48, claimAmount: 200, coverage: 'Income Loss during Extreme Heat' },
+      'SEVERE_CONGESTION': { trigger: 'SEVERE_CONGESTION', value: 9, claimAmount: 150, coverage: 'Income Loss due to Traffic' }
+    };
+
+    try {
+      const response = await fetch('http://localhost:5000/api/claims/auto-approve', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          workerId,
+          triggerData: triggerData[triggerType]
+        })
+      });
+
+      const data = await response.json();
+      
+      if (data.success) {
+        setClaimMessage(`✅ Claim Approved. Funds transferred to your UPI.`);
+        // Refresh claims
+        setTimeout(() => {
+          fetch(`http://localhost:5000/api/claims/history/${workerId}`)
+            .then(res => res.json())
+            .then(historyData => {
+              setClaims(historyData.claims || []);
+              setStats(historyData.statistics || {});
+            });
+        }, 500);
+      } else {
+        setClaimMessage(`❌ Claim failed: ${data.reason}`);
+      }
+    } catch (err) {
+      setClaimMessage(`❌ Error: ${err.message}`);
+    }
+
+    setSimulatingClaim(false);
+    setTimeout(() => setClaimMessage(''), 5000);
+  };
+
   const triggers = [
     { name: 'Heavy Rainfall', threshold: '> 60mm', icon: '🌧️', current: envData.rain, status: envData.rain > 60 ? 'TRIGGERED' : 'Normal' },
     { name: 'Severe Pollution (AQI)', threshold: '> 350', icon: '💨', current: envData.aqi, status: envData.aqi > 350 ? 'TRIGGERED' : 'Normal' },
@@ -56,9 +107,54 @@ const Dashboard = () => {
           <h1 className="text-4xl font-bold text-gray-900 tracking-tight">Welcome back, {workerName}! 👋</h1>
           <p className="text-gray-600 text-lg">Your AI-powered insurance protection dashboard</p>
         </div>
-        <Link to="/policy" className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-6 py-3 rounded-xl font-semibold hover:shadow-lg transition shadow-md flex items-center gap-2">
-          <ShieldCheck size={20} /> Manage Policy
-        </Link>
+        <div className="flex gap-2 flex-wrap">
+          <Link to="/policy" className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-6 py-3 rounded-xl font-semibold hover:shadow-lg transition shadow-md flex items-center gap-2">
+            <ShieldCheck size={20} /> Manage Policy
+          </Link>
+        </div>
+      </div>
+
+      {/* Demo Claim Simulator (for testing) */}
+      <div className="bg-purple-50 border-2 border-purple-300 p-6 rounded-2xl">
+        <h3 className="text-lg font-bold text-purple-900 mb-4 flex items-center gap-2">
+          <PlayCircle className="text-purple-600" size={24}/>
+          Test Claim Scenarios
+        </h3>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <button 
+            onClick={() => simulateClaimTrigger('HEAVY_RAINFALL')}
+            disabled={simulatingClaim}
+            className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg font-semibold transition disabled:opacity-50">
+            🌧️ Rainfall
+          </button>
+          <button 
+            onClick={() => simulateClaimTrigger('SEVERE_POLLUTION')}
+            disabled={simulatingClaim}
+            className="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg font-semibold transition disabled:opacity-50">
+            💨 Pollution
+          </button>
+          <button 
+            onClick={() => simulateClaimTrigger('EXTREME_HEAT')}
+            disabled={simulatingClaim}
+            className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg font-semibold transition disabled:opacity-50">
+            🔥 Heat
+          </button>
+          <button 
+            onClick={() => simulateClaimTrigger('SEVERE_CONGESTION')}
+            disabled={simulatingClaim}
+            className="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg font-semibold transition disabled:opacity-50">
+            🚗 Congestion
+          </button>
+        </div>
+        {claimMessage && (
+          <div className={`mt-4 p-3 rounded-lg text-sm font-semibold ${
+            claimMessage.includes('✅') 
+              ? 'bg-green-100 text-green-800' 
+              : 'bg-red-100 text-red-800'
+          }`}>
+            {claimMessage}
+          </div>
+        )}
       </div>
 
       {/* Real-time Environmental Status Grid */}
