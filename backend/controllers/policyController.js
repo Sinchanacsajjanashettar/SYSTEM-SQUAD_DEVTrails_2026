@@ -99,6 +99,145 @@ exports.createPolicy = async (req, res) => {
 };
 
 /**
+ * Calculate Premium (Live Calculator for Frontend)
+ * PHASE 2 FORMULA:
+ * Premium = Base + Risk Adjustments based on Daily Income
+ * 
+ * Rainfall > 60mm → +10% of daily income
+ * AQI > 350 → +15% of daily income
+ * Heat > 45°C → +20% of daily income
+ * Congestion > 8 → +5% of daily income
+ * 
+ * Final = Sum × 7 days - AI adjustments
+ */
+exports.calculatePremium = async (req, res) => {
+  try {
+    const { 
+      platform, 
+      location, 
+      dailyIncome,
+      rainfallThreshold,
+      aqiThreshold, 
+      heatThreshold,
+      congestionThreshold 
+    } = req.body;
+
+    if (!platform || !location || !dailyIncome) {
+      return res.status(400).json({ 
+        message: "Missing required fields: platform, location, dailyIncome",
+        finalWeeklyPremium: 0
+      });
+    }
+
+    const dailyIncomeNum = parseInt(dailyIncome);
+
+    // ⭐ PHASE 2 FORMULA: Calculate premium based on percentage additions
+    let premiumPercentage = 0;
+    const breakdown = {};
+
+    // Rainfall risk: if ACTUAL rainfall EXCEEDS 60mm, it's high risk
+    if (rainfallThreshold !== undefined && rainfallThreshold !== null) {
+      if (rainfallThreshold > 60) {
+        premiumPercentage += 10; // +10% if rainfall EXCEEDS 60mm
+        breakdown.rainfall = `+10% (rainfall ${rainfallThreshold}mm > 60mm target)`;
+        console.log("  🌧️  Rainfall Risk: +10% (EXCEEDS 60mm)");
+      }
+    }
+
+    // AQI risk: if ACTUAL AQI EXCEEDS 350, it's high risk
+    if (aqiThreshold !== undefined && aqiThreshold !== null) {
+      if (aqiThreshold > 350) {
+        premiumPercentage += 15; // +15% if AQI EXCEEDS 350
+        breakdown.aqi = `+15% (AQI ${aqiThreshold} > 350 target)`;
+        console.log("  💨 AQI Risk: +15% (EXCEEDS 350)");
+      }
+    }
+
+    // Heat risk: if ACTUAL temperature EXCEEDS 45°C, it's high risk
+    if (heatThreshold !== undefined && heatThreshold !== null) {
+      if (heatThreshold > 45) {
+        premiumPercentage += 20; // +20% if heat EXCEEDS 45°C
+        breakdown.heat = `+20% (temperature ${heatThreshold}°C > 45°C target)`;
+        console.log("  🔥 Heat Risk: +20% (EXCEEDS 45°C)");
+      }
+    }
+
+    // Congestion risk: if ACTUAL congestion EXCEEDS 8, it's high risk
+    if (congestionThreshold !== undefined && congestionThreshold !== null) {
+      if (congestionThreshold > 8) {
+        premiumPercentage += 5; // +5% if congestion EXCEEDS 8
+        breakdown.traffic = `+5% (congestion ${congestionThreshold} > 8 target)`;
+        console.log("  🚗 Traffic Risk: +5% (EXCEEDS 8)");
+      }
+    }
+
+    // Calculate daily premium from percentage
+    const dailyPremium = dailyIncomeNum * (premiumPercentage / 100);
+    
+    // Weekly premium = daily × 7 days
+    let weeklyPremium = Math.round(dailyPremium * 7);
+
+    // ⭐ AI ADJUSTMENTS:
+    // Safe zone discount: -₹2
+    let aiAdjustment = 0;
+    const locationProfile = {
+      'Whitefield': { isSafe: true, discount: 2 },
+      'Bangalore South': { isSafe: true, discount: 2 },
+      'Koramangala': { isSafe: true, discount: 2 },
+      'Bangalore North': { isSafe: false, discount: 0 },
+      'ORR': { isSafe: false, discount: 0 }
+    };
+
+    const locationData = locationProfile[location];
+    if (locationData && locationData.isSafe) {
+      aiAdjustment -= locationData.discount;
+      breakdown.safeZoneDiscount = `-₹${locationData.discount} (safe zone)`;
+      console.log(`  ✅ Safe Zone Adjustment: -₹${locationData.discount}`);
+    }
+
+    // Final premium
+    const finalWeeklyPremium = Math.max(100, weeklyPremium + aiAdjustment); // minimum ₹100
+
+    console.log("✅ Phase 2 Premium Calculated:", {
+      dailyIncome: dailyIncomeNum,
+      premiumPercentage: premiumPercentage + "%",
+      dailyPremium: dailyPremium.toFixed(2),
+      weeklyPremium,
+      aiAdjustment,
+      finalWeeklyPremium,
+      thresholds: { rainfallThreshold, aqiThreshold, heatThreshold, congestionThreshold }
+    });
+
+    res.status(200).json({
+      basePremium: weeklyPremium,
+      finalWeeklyPremium: finalWeeklyPremium,
+      monthlyPremium: finalWeeklyPremium * 4,
+      premiumPercentage,
+      aiAdjustment,
+      riskProfile: premiumPercentage > 30 ? "HIGH" : premiumPercentage > 15 ? "MEDIUM" : "LOW",
+      riskScore: premiumPercentage,
+      coverageHours: 16,
+      breakdown: {
+        dailyIncome: dailyIncomeNum,
+        premiumPercentage: premiumPercentage + "%",
+        dailyPremium: Math.round(dailyPremium),
+        weeklyBasePremium: weeklyPremium,
+        aiAdjustment,
+        finalWeeklyPremium,
+        details: breakdown
+      }
+    });
+  } catch (error) {
+    console.error("❌ Premium calculation error:", error);
+    res.status(500).json({ 
+      message: "Premium calculation failed",
+      error: error.message,
+      finalWeeklyPremium: 0
+    });
+  }
+};
+
+/**
  * Get Worker's Active Policy
  */
 exports.getWorkerPolicy = async (req, res) => {

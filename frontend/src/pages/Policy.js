@@ -27,7 +27,10 @@ const Policy = () => {
     const platform = localStorage.getItem('platform');
     
     if (workerId) {
-      setWorkerData({ workerId, workerName, dailyIncome, location, platform });
+      const data = { workerId, workerName, dailyIncome, location, platform };
+      setWorkerData(data);
+      // Calculate premium after setting worker data
+      calculatePremiumForWorker(data);
     } else {
       setError("Please register first to create a policy");
     }
@@ -39,23 +42,49 @@ const Policy = () => {
     return null;
   }
 
+  const calculatePremiumForWorker = async (worker) => {
+    try {
+      const response = await axios.post("http://localhost:5000/api/policy/calculate", {
+        platform: worker.platform,
+        location: worker.location,
+        dailyIncome: worker.dailyIncome
+      });
+      console.log("✅ Initial Premium calculated:", response.data);
+      setPremium(response.data.finalWeeklyPremium);
+    } catch (err) {
+      console.error("❌ Error calculating initial premium:", err);
+    }
+  };
+
   const calculatePremium = async (updatedParams) => {
   if (!workerData) return;
   try {
-    const res = await axios.post("http://localhost:5000/api/policy/calculate", {
-      ...workerData,
-      ...updatedParams
-    });
-    console.log("Premium response:", res.data);
-    setPremium(res.data.finalWeeklyPremium);
+    // Send the parameters directly
+    const payloadData = {
+      platform: workerData.platform,
+      location: workerData.location,
+      dailyIncome: workerData.dailyIncome,
+      rainfallThreshold: updatedParams?.rainfallThreshold !== undefined ? updatedParams.rainfallThreshold : riskParams.rainfallThreshold,
+      aqiThreshold: updatedParams?.aqiThreshold !== undefined ? updatedParams.aqiThreshold : riskParams.aqiThreshold,
+      heatThreshold: updatedParams?.heatThreshold !== undefined ? updatedParams.heatThreshold : riskParams.heatThreshold,
+      congestionThreshold: updatedParams?.congestionThreshold !== undefined ? updatedParams.congestionThreshold : riskParams.congestionThreshold
+    };
+    
+    console.log("📤 Sending premium calculation:", payloadData);
+    
+    const response = await axios.post("http://localhost:5000/api/policy/calculate", payloadData);
+    console.log("✅ Premium response:", response.data);
+    setPremium(response.data.finalWeeklyPremium);
   } catch (err) {
-    console.error("Premium calculation error:", err);
+    console.error("❌ Premium calculation error:", err);
+    setError("Error calculating premium: " + (err.response?.data?.message || err.message));
   }
 };
   const handleSliderChange = (field, value) => {
     const updatedParams = { ...riskParams, [field]: Number(value) };
     setRiskParams(updatedParams);
-    calculatePremium(updatedParams); // ⭐ auto-update premium
+    // ⭐ Call premium calculation immediately as slider moves
+    calculatePremium(updatedParams);
   };
 
   const handleCreatePolicy = async () => {
@@ -105,10 +134,14 @@ const Policy = () => {
         <h1 className="text-4xl font-bold text-gray-900">📋 Create Insurance Policy</h1>
         <p className="text-gray-600 text-lg">Set your risk parameters and calculate AI-powered premium</p>
       </div>
-          {/* Live Premium Display */}
-    <h2 className="text-2xl font-semibold text-gray-800">
-      Weekly Premium: {premium ? `₹${premium}` : "Not calculated yet"}
-    </h2>
+      {/* Live Premium Display */}
+    <div className="bg-gradient-to-r from-blue-600 to-green-600 p-8 rounded-2xl shadow-lg text-white">
+      <p className="text-lg font-semibold text-blue-100 mb-2">💰 Dynamic Weekly Premium</p>
+      <h2 className="text-5xl font-bold">
+        {premium ? `₹${premium}` : "Calculating..."}
+      </h2>
+      <p className="text-sm text-blue-100 mt-2">📊 Auto-adjusts based on risk thresholds • Powered by ML</p>
+    </div>
 
 
       {error && (
@@ -171,13 +204,13 @@ const Policy = () => {
                       min="30"
                       max="150"
                       value={riskParams.rainfallThreshold}
-                      onChange={(e) => setRiskParams({...riskParams, rainfallThreshold: parseInt(e.target.value)})}
+                      onChange={(e) => handleSliderChange('rainfallThreshold', parseInt(e.target.value))}
                       className="flex-1"
                     />
                     <input
                       type="number"
                       value={riskParams.rainfallThreshold}
-                      onChange={(e) => setRiskParams({...riskParams, rainfallThreshold: parseInt(e.target.value)})}
+                      onChange={(e) => handleSliderChange('rainfallThreshold', parseInt(e.target.value))}
                       className="w-20 p-2 border border-gray-300 rounded-lg font-mono text-sm"
                     />
                     <span className="text-sm text-gray-600 font-semibold">mm</span>
@@ -197,13 +230,13 @@ const Policy = () => {
                       min="200"
                       max="500"
                       value={riskParams.aqiThreshold}
-                      onChange={(e) => setRiskParams({...riskParams, aqiThreshold: parseInt(e.target.value)})}
+                      onChange={(e) => handleSliderChange('aqiThreshold', parseInt(e.target.value))}
                       className="flex-1"
                     />
                     <input
                       type="number"
                       value={riskParams.aqiThreshold}
-                      onChange={(e) => setRiskParams({...riskParams, aqiThreshold: parseInt(e.target.value)})}
+                      onChange={(e) => handleSliderChange('aqiThreshold', parseInt(e.target.value))}
                       className="w-20 p-2 border border-gray-300 rounded-lg font-mono text-sm"
                     />
                     <span className="text-sm text-gray-600 font-semibold">AQI</span>
@@ -222,13 +255,13 @@ const Policy = () => {
                       min="35"
                       max="50"
                       value={riskParams.heatThreshold}
-                      onChange={(e) => setRiskParams({...riskParams, heatThreshold: parseInt(e.target.value)})}
+                      onChange={(e) => handleSliderChange('heatThreshold', parseInt(e.target.value))}
                       className="flex-1"
                     />
                     <input
                       type="number"
                       value={riskParams.heatThreshold}
-                      onChange={(e) => setRiskParams({...riskParams, heatThreshold: parseInt(e.target.value)})}
+                      onChange={(e) => handleSliderChange('heatThreshold', parseInt(e.target.value))}
                       className="w-20 p-2 border border-gray-300 rounded-lg font-mono text-sm"
                     />
                     <span className="text-sm text-gray-600 font-semibold">°C</span>
@@ -248,14 +281,14 @@ const Policy = () => {
                       max="10"
                       step="0.5"
                       value={riskParams.congestionThreshold}
-                      onChange={(e) => setRiskParams({...riskParams, congestionThreshold: parseFloat(e.target.value)})}
+                      onChange={(e) => handleSliderChange('congestionThreshold', parseFloat(e.target.value))}
                       className="flex-1"
                     />
                     <input
                       type="number"
                       step="0.5"
                       value={riskParams.congestionThreshold}
-                      onChange={(e) => setRiskParams({...riskParams, congestionThreshold: parseFloat(e.target.value)})}
+                      onChange={(e) => handleSliderChange('congestionThreshold', parseFloat(e.target.value))}
                       className="w-20 p-2 border border-gray-300 rounded-lg font-mono text-sm"
                     />
                     <span className="text-sm text-gray-600 font-semibold">/10</span>
