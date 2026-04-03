@@ -145,7 +145,8 @@ Worker → React App → Node.js Backend → AI Risk Engine → Fraud Detection 
 
 ---
 ## 📁 Repository Structure
----
+
+```
 GigShield-AI/
 ├── frontend/
 ├── backend/
@@ -154,7 +155,7 @@ GigShield-AI/
 ├── docs/
 ├── scripts/
 └── README.md
----
+```
 
 ---
 
