@@ -181,10 +181,12 @@ npm start
 
 
 🔐 Environment Variables
+```
 
 Create a .env file in backend:
 MONGO_URI=your_mongodb_connection
 API_KEY=your_api_key
+```
 
 ---
 🎥Demo Video
