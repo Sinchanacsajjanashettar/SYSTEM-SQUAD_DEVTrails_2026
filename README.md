@@ -178,14 +178,14 @@ cd ../frontend
 npm install
 npm start
 ```
----
+
 
 🔐 Environment Variables
 
 Create a .env file in backend:
 MONGO_URI=your_mongodb_connection
 API_KEY=your_api_key
----
+
 ---
 🎥Demo Video
 
@@ -194,6 +194,7 @@ https://www.youtube.com/watch?v=vJdbbHWPUjA
 ---
 
 🏁 Conclusion
+```
 
 GigShield AI provides:
 
@@ -203,5 +204,5 @@ GigShield AI provides:
 ✔ Instant UPI payouts
 
 It modernizes insurance into a fully automated smart system for the gig economy.
----
+```
 
