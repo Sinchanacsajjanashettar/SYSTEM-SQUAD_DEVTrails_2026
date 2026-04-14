@@ -98,7 +98,7 @@ exports.checkAllTriggers = (environmentData) => {
 
   return {
     anyTriggered: triggers.length > 0,
-    activetriggers: triggers,
+    activeTriggers: triggers,
     totalClaimAmount: triggers.reduce((sum, t) => sum + t.claimAmount, 0)
   };
 };

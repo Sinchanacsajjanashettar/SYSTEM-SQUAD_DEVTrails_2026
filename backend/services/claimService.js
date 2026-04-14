@@ -1,6 +1,7 @@
 const Claim = require("../models/Claim");
 const Worker = require("../models/Worker");
 const Policy = require("../models/Policy");
+const fraudValidationService = require("./fraudValidationService");
 
 /**
  * Advanced Claim Processing Service
@@ -118,8 +119,30 @@ exports.createAutoApprovedClaim = async (workerId, triggerData) => {
       payoutMethod: 'upi',
       payoutUPI: worker.upiHandle,
       payoutStatus: 'initiated',
-      autoApprovalReason: `Parametric trigger activated: ${triggerData.coverage}`
+      autoApprovalReason: `Parametric trigger activated: ${triggerData.coverage}`,
+      // Will be updated with actual ML fraud score below
+      fraudScore: 0.1
     });
+
+    // Validate claim with ML fraud detection
+    console.log(`🔍 Running ML fraud detection for claim...`);
+    const fraudAssessment = await fraudValidationService.validateClaim({
+      claimId: claim._id.toString(),
+      claimType: triggerData.trigger,
+      location: triggerData.location || 'Unknown',
+      workerId: workerId,
+      timestamp: new Date(),
+      latitude: triggerData.latitude || 0,
+      longitude: triggerData.longitude || 0,
+      claimAmount: triggerData.claimAmount
+    });
+
+    // Update claim with ML-based fraud score
+    claim.fraudScore = fraudAssessment.fraudScore || 0.1;
+    claim.riskLevel = fraudAssessment.riskLevel || 'low';
+    claim.fraudDetails = fraudAssessment.details || {};
+
+    console.log(`📊 ML Fraud Score: ${claim.fraudScore}, Risk: ${claim.riskLevel}`);
 
     await claim.save();
 
@@ -319,7 +342,8 @@ exports.autoClaim = async (workerId) => {
     workerId,
     claimType: 'HEAVY_RAINFALL',
     claimAmount: 300,
-    status: "approved"
+    status: "approved",
+    fraudScore: 0.1
   });
 
   await claim.save();

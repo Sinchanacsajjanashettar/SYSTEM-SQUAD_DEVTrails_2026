@@ -26,6 +26,22 @@ app.use("/api/claims", claimRoutes);
 app.use("/api/payments", paymentRoutes);
 app.use("/api/fraud", fraudRoutes);
 
+// Global state for current trigger status
+let currentEnvironmentData = {
+  rainfall: 0,
+  aqi: 0,
+  temperature: 0,
+  congestionIndex: 0,
+  curfewActive: false,
+  lastUpdated: new Date()
+};
+
+let lastTriggerResults = {
+  anyTriggered: false,
+  activeTriggers: [],
+  totalClaimAmount: 0
+};
+
 // DB Connection
 mongoose.connect("mongodb://127.0.0.1:27017/gigshield")
   .then(() => console.log("✅ MongoDB Connected"))
@@ -48,6 +64,12 @@ const startMonitoringSystem = () => {
         curfewActive: false
       };
 
+      // Store current environment data globally
+      currentEnvironmentData = {
+        ...environmentData,
+        lastUpdated: new Date()
+      };
+
       console.log("\n🔍 [MONITORING CYCLE]", new Date().toLocaleTimeString());
       console.log("📊 Environment Data:", {
         rain: Math.round(environmentData.rainfall) + "mm",
@@ -58,14 +80,17 @@ const startMonitoringSystem = () => {
 
       // Check all triggers
       const triggerResults = checkAllTriggers(environmentData);
+      
+      // Store trigger results globally
+      lastTriggerResults = triggerResults;
 
       if (triggerResults.anyTriggered) {
-        console.log("\n🚨 TRIGGERS ACTIVATED:", triggerResults.activetriggers.length);
+        console.log("\n🚨 TRIGGERS ACTIVATED:", triggerResults.activeTriggers.length);
         
         // Get all active workers with active policies
         const workers = await Worker.find({ isActive: true });
         
-        for (const trigger of triggerResults.activetriggers) {
+        for (const trigger of triggerResults.activeTriggers) {
           console.log(`\n⚡ Processing: ${trigger.trigger}`);
           
           // Create claims for all eligible workers
@@ -111,20 +136,28 @@ app.get("/api/health", (req, res) => {
 });
 
 /**
- * Trigger Status Dashboard (for testing)
+ * Trigger Status Dashboard (returns real-time data)
  */
 app.get("/api/triggers/status", (req, res) => {
-  const triggers = [
-    { name: 'Heavy Rainfall', threshold: '> 60mm', enabled: true },
-    { name: 'Severe Pollution (AQI)', threshold: '> 350', enabled: true },
-    { name: 'Extreme Heat', threshold: '> 45°C', enabled: true },
-    { name: 'Severe Traffic Congestion', threshold: '> 8/10', enabled: true },
-    { name: 'Government Curfew', threshold: 'Active', enabled: true }
-  ];
-
   res.json({
-    activeTriggers: triggers,
-    description: "All 5 parametric triggers are active and monitoring 24/7",
+    currentEnvironment: {
+      rainfall: Math.round(currentEnvironmentData.rainfall * 10) / 10,
+      aqi: Math.round(currentEnvironmentData.aqi),
+      temperature: Math.round(currentEnvironmentData.temperature * 10) / 10,
+      congestionIndex: Math.round(currentEnvironmentData.congestionIndex * 10) / 10,
+      curfewActive: currentEnvironmentData.curfewActive,
+      lastUpdated: currentEnvironmentData.lastUpdated
+    },
+    triggers: {
+      rainfall: { threshold: 60, current: Math.round(currentEnvironmentData.rainfall * 10) / 10, unit: 'mm', triggered: currentEnvironmentData.rainfall > 60 },
+      aqi: { threshold: 350, current: Math.round(currentEnvironmentData.aqi), unit: 'AQI', triggered: currentEnvironmentData.aqi > 350 },
+      temperature: { threshold: 45, current: Math.round(currentEnvironmentData.temperature * 10) / 10, unit: '°C', triggered: currentEnvironmentData.temperature > 45 },
+      congestion: { threshold: 8, current: Math.round(currentEnvironmentData.congestionIndex * 10) / 10, unit: '/10', triggered: currentEnvironmentData.congestionIndex > 8 },
+      curfew: { threshold: 'Active', current: currentEnvironmentData.curfewActive, unit: 'boolean', triggered: currentEnvironmentData.curfewActive === true }
+    },
+    activeTriggers: lastTriggerResults.activeTriggers,
+    anyTriggered: lastTriggerResults.anyTriggered,
+    totalClaimAmount: lastTriggerResults.totalClaimAmount,
     monitoringInterval: "30 seconds",
     claimApproval: "Automatic (Zero-Touch)"
   });

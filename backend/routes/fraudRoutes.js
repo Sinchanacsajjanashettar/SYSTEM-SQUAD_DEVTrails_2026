@@ -123,35 +123,35 @@ router.get('/claim/:claimId', async (req, res) => {
  */
 router.get('/dashboard', async (req, res) => {
   try {
+    console.log('📊 Fetching fraud dashboard data...');
+    
     const stats = await fraudValidationService.getFraudStatistics();
     const flaggedWorkers = await fraudValidationService.getFlaggedWorkers('high');
 
-    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-    const recentHighRiskClaims = await Claim.find({
-      fraudScore: { $gte: 0.7 },
-      timestamp: { $gte: thirtyDaysAgo }
-    })
-    .select('claimId claimType claimAmount fraudScore workerId timestamp')
-    .limit(10)
-    .lean();
+    // Get ALL claims sorted by newest first
+    const allClaims = await Claim.find({}).sort({ createdAt: -1 }).limit(20).lean();
+    
+    console.log(`✅ Found ${allClaims.length} total claims in dashboard query`);
+    console.log(`📈 Stats: Total=${stats.totalClaims}, Auto-Approved=${stats.autoApproved}, Flagged=${stats.flaggedForManualReview}`);
 
     res.json({
       success: true,
       data: {
         statistics: stats,
         flaggedWorkers: flaggedWorkers.slice(0, 5),
-        recentHighRiskClaims,
+        recentHighRiskClaims: allClaims.filter(c => (c.fraudScore ?? 0.1) > 0.7),
         suspiciousPatterns: {
-          totalFlagged: stats.highRiskClaims + stats.mediumRiskClaims,
-          requiring_manual_review: stats.mediumRiskClaims + stats.highRiskClaims,
-          rejected_automatically: 0
+          totalFlagged: (stats.highRiskClaims || 0) + (stats.mediumRiskClaims || 0),
+          requiring_manual_review: (stats.mediumRiskClaims || 0) + (stats.highRiskClaims || 0),
+          rejected_automatically: 0,
+          auto_approved: stats.autoApproved || 0
         }
       },
       timestamp: new Date().toISOString()
     });
 
   } catch (error) {
-    console.error('Dashboard error:', error);
+    console.error('❌ Dashboard error:', error);
     res.status(500).json({
       error: error.message,
       timestamp: new Date().toISOString()
@@ -233,6 +233,57 @@ router.post('/override/:claimId', async (req, res) => {
     res.status(500).json({
       error: error.message,
       timestamp: new Date().toISOString()
+    });
+  }
+});
+
+/**
+ * DEBUG: Simple claim count
+ */
+router.get('/debug/claim-count', async (req, res) => {
+  try {
+    const count = await Claim.countDocuments();
+    const sample = await Claim.findOne().lean();
+    
+    res.json({
+      totalCount: count,
+      sample: sample,
+      hasData: count > 0 ? '✅ YES' : '❌ NO'
+    });
+  } catch (error) {
+    res.json({
+      error: error.message
+    });
+  }
+});
+
+/**
+ * DEBUG: Check all claims in database
+ */
+router.get('/debug/all-claims', async (req, res) => {
+  try {
+    const totalClaims = await Claim.countDocuments();
+    const allClaims = await Claim.find().select('workerId claimType claimAmount fraudScore status createdAt triggeredAt').sort({ createdAt: -1 }).limit(20).lean();
+    
+    // Count by fraud score
+    const withFraudScore = allClaims.filter(c => c.fraudScore !== undefined && c.fraudScore !== null).length;
+    const withoutFraudScore = allClaims.filter(c => c.fraudScore === undefined || c.fraudScore === null).length;
+    
+    console.log(`\ud83d\udd0d DEBUG: Total=${totalClaims}, With FraudScore=${withFraudScore}, Without=${withoutFraudScore}`);
+    
+    res.json({
+      success: true,
+      totalClaimsInDB: totalClaims,
+      recentClaims: allClaims,
+      analysis: {
+        claimsWithFraudScore: withFraudScore,
+        claimsWithoutFraudScore: withoutFraudScore
+      },
+      message: `Total claims in database: ${totalClaims}`
+    });
+  } catch (error) {
+    res.status(500).json({
+      error: error.message
     });
   }
 });

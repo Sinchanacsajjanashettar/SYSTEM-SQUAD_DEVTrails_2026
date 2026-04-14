@@ -61,15 +61,15 @@ const DashboardAnalytics = () => {
 
       // Fetch claims and payments (can be empty)
       const [claimsRes, paymentsRes] = await Promise.all([
-        axios.get(`http://localhost:5000/api/claims/history/${workerId}?limit=10`).catch(err => ({ data: { data: [] } })),
-        axios.get(`http://localhost:5000/api/payments/history/${workerId}`).catch(err => ({ data: { data: [] } }))
+        axios.get(`http://localhost:5000/api/claims/history/${workerId}?limit=10`).catch(err => ({ data: { claims: [] } })),
+        axios.get(`http://localhost:5000/api/payments/history/${workerId}`).catch(err => ({ data: { data: { transactions: [] } } }))
       ]);
 
       setWorkerData({
         worker: workerRes.data,
         policy: policyRes?.data,
-        claims: claimsRes.data?.data || claimsRes.data || [],
-        paymentHistory: paymentsRes.data?.data || paymentsRes.data?.transactions || []
+        claims: claimsRes.data?.claims || claimsRes.data?.data || [],
+        paymentHistory: paymentsRes.data?.data?.transactions || paymentsRes.data?.transactions || []
       });
 
       setError(null);
@@ -94,10 +94,10 @@ const DashboardAnalytics = () => {
       
       // Handle multiple response formats
       let newClaims = [];
-      if (claimsRes.data?.data && Array.isArray(claimsRes.data.data)) {
-        newClaims = claimsRes.data.data;
-      } else if (Array.isArray(claimsRes.data.claims)) {
+      if (Array.isArray(claimsRes.data?.claims)) {
         newClaims = claimsRes.data.claims;
+      } else if (Array.isArray(claimsRes.data?.data)) {
+        newClaims = claimsRes.data.data;
       } else if (Array.isArray(claimsRes.data)) {
         newClaims = claimsRes.data;
       }
@@ -118,10 +118,18 @@ const DashboardAnalytics = () => {
   const fetchEnvironmentData = async () => {
     try {
       // Get latest triggered data from backend monitoring
-      const envRes = await axios.get('http://localhost:5000/api/triggers/status').catch(err => null);
+      const envRes = await axios.get('http://localhost:5000/api/triggers/status');
       
-      if (envRes) {
-        // Extract data or use random simulation
+      if (envRes && envRes.data && envRes.data.currentEnvironment) {
+        // Use real data from backend
+        setEnvironmentData({
+          rainfall: envRes.data.currentEnvironment.rainfall,
+          aqi: envRes.data.currentEnvironment.aqi,
+          temperature: envRes.data.currentEnvironment.temperature,
+          congestionIndex: envRes.data.currentEnvironment.congestionIndex
+        });
+      } else {
+        // Fallback to random data if endpoint doesn't return environment
         setEnvironmentData({
           rainfall: Math.random() * 100,
           aqi: Math.round(50 + Math.random() * 400),
@@ -130,8 +138,8 @@ const DashboardAnalytics = () => {
         });
       }
     } catch (err) {
-      console.log('Environmental data error:', err.message);
-      // Set default monitoring data
+      console.log('⚠️ Environmental data error:', err.message);
+      // Set random monitoring data as fallback
       setEnvironmentData({
         rainfall: Math.random() * 100,
         aqi: Math.round(50 + Math.random() * 400),
@@ -200,7 +208,7 @@ const DashboardAnalytics = () => {
   }
 
   const totalClaimsAmount = claims.reduce((sum, c) => sum + (c.claimAmount || 0), 0);
-  const approvedClaims = claims.filter(c => c.status === 'Approved').length;
+  const approvedClaims = claims.filter(c => c.status === 'approved' || c.status === 'paid').length;
 
   // Get current trigger data based on live environmental data
   const getTriggerThresholds = (triggerType) => {
@@ -256,7 +264,7 @@ const DashboardAnalytics = () => {
         workerId,
         claimAmount: triggerInfo.claimAmount,
         claimType: triggerType,
-        status: 'Approved',
+        status: 'approved',
         triggerReason: `${triggerType.charAt(0).toUpperCase() + triggerType.slice(1)}: ${triggerInfo.actualData} > ${triggerInfo.threshold} threshold`
       };
 
@@ -370,7 +378,7 @@ const DashboardAnalytics = () => {
                   <div className="claim-details">
                     <span className="amount">₹{claim.claimAmount}</span>
                     <span className={`status ${claim.status?.toLowerCase()}`}>
-                      {claim.status || 'Approved'}
+                      {claim.status ? claim.status.charAt(0).toUpperCase() + claim.status.slice(1) : 'Pending'}
                     </span>
                   </div>
                 </div>

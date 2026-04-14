@@ -51,10 +51,45 @@ const ClaimSchema = new mongoose.Schema({
   },
   reviewNotes: String,
   
-  // Timestamps
-  triggeredAt: { type: Date, default: Date.now },
-  createdAt: { type: Date, default: Date.now },
-  updatedAt: { type: Date, default: Date.now }
-}, { timestamps: true });
+  // Fraud Detection Score (0 = low risk, 1 = high risk)
+  fraudScore: {
+    type: Number,
+    default: 0,
+    min: 0,
+    max: 1
+  },
+
+  // Fraud Risk Level
+  riskLevel: {
+    type: String,
+    enum: ['low', 'medium', 'high'],
+    default: 'low'
+  },
+
+  // Detailed Fraud Analysis from ML
+  fraudDetails: {
+    gps: {
+      fraud_score: Number,
+      risk_level: String,
+      reason: [String],
+      check: String
+    },
+    weather: {
+      fraud_score: Number,
+      risk_level: String,
+      reason: [String],
+      check: String
+    },
+    behavioral: {
+      behavioral_score: Number,
+      risk_level: String,
+      reason: [String],
+      check: String
+    }
+  },
+  
+  // Trigger activation timestamp
+  triggeredAt: { type: Date, default: Date.now }
+}, { timestamps: true });  // Automatically adds createdAt and updatedAt
 
 module.exports = mongoose.model("Claim", ClaimSchema);

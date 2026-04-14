@@ -105,6 +105,7 @@ class FraudValidationService {
 
   /**
    * Check for GPS spoofing - impossible travel patterns
+   * Calls Python ML service on port 5001
    */
   async checkGPSSpoofing(workerId, location, worker) {
     try {
@@ -114,22 +115,31 @@ class FraudValidationService {
       if (recentDeliveries.length === 0) {
         return {
           fraud_score: 0.0,
-          reason: 'no_history_to_compare'
+          risk_level: 'low',
+          reason: 'no_history_to_compare',
+          check: 'GPS_SPOOFING_DETECTION'
         };
       }
 
-      // Call Python service for GPS analysis
+      // Call Python ML service for GPS analysis
+      console.log(`[FraudValidation] Calling Python ML API: check-gps for ${workerId}`);
       const response = await axios.post('http://localhost:5001/api/fraud/check-gps', {
         workerId,
         currentLocation: location,
         deliveryHistory: recentDeliveries
       }, { timeout: 5000 });
 
+      console.log(`✅ GPS Score: ${response.data.fraud_score}, Level: ${response.data.risk_level}`);
       return response.data;
 
     } catch (error) {
       console.warn(`[FraudValidation] GPS check failed for ${workerId}:`, error.message);
-      return { fraud_score: 0.0, reason: 'check_unavailable' };
+      return { 
+        fraud_score: 0.0, 
+        risk_level: 'low',
+        reason: 'check_unavailable',
+        check: 'GPS_SPOOFING_DETECTION'
+      };
     }
   }
 
@@ -155,6 +165,7 @@ class FraudValidationService {
 
   /**
    * Check for behavioral fraud patterns
+   * Calls Python ML service on port 5001
    */
   async checkBehavioralAnomaly(workerId, claimAmount, worker) {
     try {
@@ -162,28 +173,36 @@ class FraudValidationService {
       const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
       const recentClaims = await Claim.find({
         workerId,
-        timestamp: { $gte: thirtyDaysAgo }
+        createdAt: { $gte: thirtyDaysAgo }
       }).lean();
 
-      // Calculate worker monthly income (rough estimate from delivery data)
+      // Calculate worker monthly income (rough estimate)
       const monthlyIncome = this.estimateMonthlyIncome(worker);
 
+      console.log(`[FraudValidation] Calling Python ML API: check-behavioral for ${workerId}`);
+      
       // Call Python service for behavioral analysis
-      const response = await axios.post('http://localhost:5001/api/fraud/detect-behavioral', {
+      const response = await axios.post('http://localhost:5001/api/fraud/check-behavioral', {
         workerId,
         claimAmount,
         recentClaims: recentClaims.map(c => ({
-          timestamp: c.timestamp,
+          timestamp: c.createdAt || c.timestamp,
           claimAmount: c.claimAmount
         })),
         monthlyIncome
       }, { timeout: 5000 });
 
+      console.log(`✅ Behavioral Score: ${response.data.behavioral_score}, Level: ${response.data.risk_level}`);
       return response.data;
 
     } catch (error) {
       console.warn(`[FraudValidation] Behavioral check failed:`, error.message);
-      return { behavioral_score: 0.0, reason: 'check_unavailable' };
+      return { 
+        behavioral_score: 0.0, 
+        risk_level: 'low',
+        reason: 'check_unavailable',
+        check: 'BEHAVIORAL_ANOMALY'
+      };
     }
   }
 
@@ -221,22 +240,24 @@ class FraudValidationService {
    */
   async getFraudStatistics(query = {}) {
     try {
-      const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+      // Get ALL claims - no date filtering
+      const allClaims = await Claim.find({}).lean();
+      
+      console.log(`📊 getFraudStatistics: Found ${allClaims.length} total claims in DB`);
 
-      // Get all recent claims
-      const allClaims = await Claim.find({
-        timestamp: { $gte: thirtyDaysAgo },
-        ...query
-      }).lean();
-
-      // Categorize by fraud score
-      const highRisk = allClaims.filter(c => c.fraudScore > 0.7).length;
-      const mediumRisk = allClaims.filter(c => c.fraudScore > 0.4 && c.fraudScore <= 0.7).length;
-      const lowRisk = allClaims.filter(c => c.fraudScore <= 0.4).length;
+      // Categorize by fraud score (default to 0.1 if not set - parametric auto-approved claims)
+      const highRisk = allClaims.filter(c => (c.fraudScore ?? 0.1) > 0.7).length;
+      const mediumRisk = allClaims.filter(c => {
+        const score = c.fraudScore ?? 0.1;
+        return score > 0.4 && score <= 0.7;
+      }).length;
+      const lowRisk = allClaims.filter(c => (c.fraudScore ?? 0.1) <= 0.4).length;
 
       const fraudRate = allClaims.length > 0 
         ? (highRisk / allClaims.length * 100).toFixed(2)
         : 0;
+
+      console.log(`✅ Stats: Total=${allClaims.length}, Low=${lowRisk}, Med=${mediumRisk}, High=${highRisk}`);
 
       return {
         totalClaims: allClaims.length,
@@ -249,8 +270,16 @@ class FraudValidationService {
       };
 
     } catch (error) {
-      console.error('Error calculating fraud statistics:', error);
-      return {};
+      console.error('❌ Error calculating fraud statistics:', error);
+      return {
+        totalClaims: 0,
+        highRiskClaims: 0,
+        mediumRiskClaims: 0,
+        lowRiskClaims: 0,
+        fraudRate: 0,
+        flaggedForManualReview: 0,
+        autoApproved: 0
+      };
     }
   }
 
@@ -265,7 +294,11 @@ class FraudValidationService {
       const maxScore = riskLevel === 'high' ? 1.0 : riskLevel === 'medium' ? 0.7 : 0.4;
 
       const flaggedClaims = await Claim.find({
-        timestamp: { $gte: thirtyDaysAgo },
+        $or: [
+          { createdAt: { $gte: thirtyDaysAgo } },
+          { triggeredAt: { $gte: thirtyDaysAgo } },
+          { updatedAt: { $gte: thirtyDaysAgo } }
+        ],
         fraudScore: { $gte: minScore, $lt: maxScore }
       }).populate('workerId', 'name email platform').lean();
 
