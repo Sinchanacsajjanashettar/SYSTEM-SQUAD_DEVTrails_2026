@@ -15,13 +15,17 @@ exports.createAutoApprovedClaim = async (req, res) => {
   try {
     const { workerId, triggerData } = req.body;
 
+    console.log('📥 Claim Trigger Request:', { workerId, triggerData });
+
     if (!workerId || !triggerData || !triggerData.trigger) {
+      console.error('❌ Missing fields:', { workerId, triggerData });
       return res.status(400).json({ 
         message: "Missing required fields: workerId, triggerData.trigger"
       });
     }
 
     // Call claim service for auto-approval
+    console.log('🔄 Calling claimService.createAutoApprovedClaim...');
     const claimResult = await createAutoApprovedClaim(workerId, triggerData);
 
     if (claimResult.success) {

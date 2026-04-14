@@ -11,6 +11,7 @@ import joblib
 import os
 import json
 from math import radians, cos, sin, asin, sqrt
+import numpy as np
 
 # Import custom fraud detectors
 from fraud_detection_gps import GPSSpoofingDetector
@@ -47,6 +48,118 @@ try:
 except:
     scaler = None
     print("⚠️ Scaler not found")
+
+# Feature columns for ML models (must match training data)
+FEATURE_COLS = [
+    'claim_amount', 'hour_of_day', 'day_of_week', 'is_weekend',
+    'worker_experience_months', 'worker_claims_last_30d', 'worker_avg_claim_amount',
+    'worker_rejection_rate', 'location_risk_score', 'time_risk_score',
+    'amount_risk_score', 'pattern_risk_score', 'gps_anomaly_score',
+    'weather_validity_score', 'behavioral_anomaly_score'
+]
+
+def prepare_ml_features(data, recent_claims, worker_monthly_income):
+    """
+    Prepare feature vector for ML model prediction - must match training data generation
+    """
+    worker_id = data.get('workerId')
+    claim_amount = data.get('claimAmount', 0)
+
+    # Calculate worker statistics from recent claims
+    worker_claims_last_30d = len(recent_claims)
+    worker_avg_claim_amount = np.mean([c.get('claimAmount', 0) for c in recent_claims]) if recent_claims else 0
+    worker_rejection_rate = 0.05  # Default, could be enhanced with real data
+
+    # Time-based features
+    current_time = datetime.now()
+    hour_of_day = current_time.hour
+    day_of_week = current_time.weekday()
+    is_weekend = 1 if day_of_week >= 5 else 0
+
+    # Worker experience (rough estimate based on claims history)
+    worker_experience_months = max(1, len(recent_claims) * 2)  # Rough estimate
+
+    # Risk scores - these should be calculated by individual detectors
+    # For now, use simple heuristics that match training data patterns
+    location_risk_score = 0.1  # Default low risk for Bangalore area
+    time_risk_score = 0.1 if 6 <= hour_of_day <= 22 else 0.5  # Higher risk at night
+    amount_risk_score = min(1.0, claim_amount / 1000)  # Normalize by 1000
+    pattern_risk_score = min(1.0, worker_claims_last_30d / 10)  # Risk based on frequency
+
+    # Anomaly scores - these would come from specialized detectors
+    # For behavioral, use rule-based calculation that matches training data
+    gps_anomaly_score = 0.0  # GPS detector would set this
+    weather_validity_score = 0.0  # Weather validator would set this
+
+    # Behavioral anomaly score - calculate similar to training data generation
+    behavioral_anomaly_score = 0.0
+    if worker_claims_last_30d > 4:
+        behavioral_anomaly_score += min(0.4, (worker_claims_last_30d - 4) * 0.1)
+    if claim_amount > worker_monthly_income * 0.5:
+        behavioral_anomaly_score += 0.3
+    behavioral_anomaly_score = min(1.0, behavioral_anomaly_score)
+
+    # Create feature vector in exact order as training data
+    features = [
+        claim_amount,                    # claim_amount
+        hour_of_day,                     # hour_of_day
+        day_of_week,                     # day_of_week
+        is_weekend,                      # is_weekend
+        worker_experience_months,        # worker_experience_months
+        worker_claims_last_30d,          # worker_claims_last_30d
+        worker_avg_claim_amount,         # worker_avg_claim_amount
+        worker_rejection_rate,           # worker_rejection_rate
+        location_risk_score,             # location_risk_score
+        time_risk_score,                 # time_risk_score
+        amount_risk_score,               # amount_risk_score
+        pattern_risk_score,              # pattern_risk_score
+        gps_anomaly_score,               # gps_anomaly_score
+        weather_validity_score,          # weather_validity_score
+        behavioral_anomaly_score         # behavioral_anomaly_score
+    ]
+
+    return features
+
+def generate_ml_explanations(features, fraud_score, model, feature_names):
+    """
+    Generate human-readable explanations for ML predictions
+    """
+    reasons = []
+
+    # Get feature importances
+    if hasattr(model, 'feature_importances_'):
+        importances = model.feature_importances_
+        # Get top contributing features
+        top_indices = np.argsort(importances)[-5:][::-1]  # Top 5 features
+
+        for idx in top_indices:
+            feature_name = feature_names[idx]
+            importance = importances[idx]
+            value = features[idx]
+
+            if importance > 0.05:  # Only explain important features
+                if 'amount' in feature_name.lower() and value > 500:
+                    reasons.append(f"High claim amount (₹{value:.0f}) contributes to fraud risk")
+                elif 'claims_last_30d' in feature_name and value > 3:
+                    reasons.append(f"Frequent claims ({value:.0f} in 30 days) indicates suspicious pattern")
+                elif 'rejection_rate' in feature_name and value > 0.2:
+                    reasons.append(f"High rejection history ({value:.1%}) suggests fraudulent behavior")
+                elif 'hour_of_day' in feature_name and (value < 6 or value > 22):
+                    reasons.append(f"Unusual claim time ({value:.0f}:00) increases fraud probability")
+                elif 'weekend' in feature_name and value > 0:
+                    reasons.append("Weekend claims have higher fraud risk patterns")
+
+    if fraud_score > 0.7:
+        reasons.append("Multiple risk factors combine to create high fraud probability")
+    elif fraud_score > 0.4:
+        reasons.append("Moderate risk indicators suggest manual review needed")
+    else:
+        reasons.append("Low fraud probability based on ML analysis")
+
+    if not reasons:
+        reasons.append("ML model analysis completed - no significant risk factors identified")
+
+    return reasons
 
 # Health check
 @app.route('/api/health', methods=['GET'])
@@ -194,7 +307,7 @@ def validate_weather():
 @app.route('/api/fraud/check-behavioral', methods=['POST'])
 def check_behavioral():
     """
-    Detect behavioral anomalies - suspicious claim patterns
+    ML-based behavioral fraud detection using trained models
     """
     try:
         data = request.json
@@ -203,49 +316,88 @@ def check_behavioral():
         recent_claims = data.get('recentClaims', [])
         worker_monthly_income = data.get('monthlyIncome', 15000)
 
-        print(f"🧠 [Behavioral Check] Worker {worker_id}: Amount ₹{claim_amount}")
+        print(f"🧠 [ML Behavioral Check] Worker {worker_id}: Amount ₹{claim_amount}")
 
-        fraud_score = 0.0
-        details = []
+        # Prepare features for ML model
+        features = prepare_ml_features(data, recent_claims, worker_monthly_income)
 
-        # Check claim frequency
-        if len(recent_claims) > 0:
-            claims_per_week = len([c for c in recent_claims if (datetime.now() - datetime.fromisoformat(c.get('timestamp', datetime.now().isoformat()))).days <= 7])
-            if claims_per_week > 4:
-                frequency_score = min(0.4, (claims_per_week - 4) * 0.1)
-                fraud_score += frequency_score
-                details.append(f"High frequency: {claims_per_week} claims/week")
+        if rf_model and gb_model and scaler:
+            # Use trained ML models
+            features_scaled = scaler.transform([features])
+            rf_prob = rf_model.predict_proba(features_scaled)[0][1]  # Fraud probability
+            gb_prob = gb_model.predict_proba(features_scaled)[0][1]  # Fraud probability
 
-        # Check claim amount vs income
-        if claim_amount > worker_monthly_income * 0.5:
-            amount_score = 0.3
-            fraud_score += amount_score
-            details.append(f"High payout ratio: ₹{claim_amount} vs ₹{worker_monthly_income} monthly income")
+            # Ensemble prediction
+            fraud_score = (rf_prob + gb_prob) / 2
 
-        # Normalize combined score
-        fraud_score = min(1.0, fraud_score)
-        level = 'high' if fraud_score > 0.7 else 'medium' if fraud_score > 0.4 else 'low'
+            # Get predictions for explanation
+            rf_pred = rf_model.predict(features_scaled)[0]
+            gb_pred = gb_model.predict(features_scaled)[0]
 
-        if not details:
-            details.append("No behavioral anomalies detected")
+            # Determine risk level
+            if fraud_score > 0.7:
+                level = 'high'
+            elif fraud_score > 0.4:
+                level = 'medium'
+            else:
+                level = 'low'
 
-        result = {
-            'behavioral_score': round(fraud_score, 2),
-            'risk_level': level,
-            'reason': details,
-            'check': 'BEHAVIORAL_ANOMALY'
-        }
+            # Generate explanations
+            reasons = generate_ml_explanations(features, fraud_score, rf_model, FEATURE_COLS)
 
-        print(f"✅ [Behavioral] Score: {fraud_score:.2f}, Level: {level}")
+            result = {
+                'behavioral_score': round(float(fraud_score), 3),
+                'risk_level': level,
+                'reason': reasons,
+                'check': 'BEHAVIORAL_ANOMALY_ML',
+                'model_confidence': {
+                    'random_forest': round(float(rf_prob), 3),
+                    'gradient_boosting': round(float(gb_prob), 3),
+                    'ensemble_score': round(float(fraud_score), 3)
+                }
+            }
+
+        else:
+            # Fallback to rule-based if models not available
+            print("⚠️ ML models not available, using rule-based logic")
+            fraud_score = 0.0
+            reasons = []
+
+            if len(recent_claims) > 0:
+                claims_per_week = len([c for c in recent_claims if (datetime.now() - datetime.fromisoformat(c.get('timestamp', datetime.now().isoformat()))).days <= 7])
+                if claims_per_week > 4:
+                    frequency_score = min(0.4, (claims_per_week - 4) * 0.1)
+                    fraud_score += frequency_score
+                    reasons.append(f"High frequency: {claims_per_week} claims/week")
+
+            if claim_amount > worker_monthly_income * 0.5:
+                amount_score = 0.3
+                fraud_score += amount_score
+                reasons.append(f"High payout ratio: ₹{claim_amount} vs ₹{worker_monthly_income} monthly income")
+
+            fraud_score = min(1.0, fraud_score)
+            level = 'high' if fraud_score > 0.7 else 'medium' if fraud_score > 0.4 else 'low'
+
+            if not reasons:
+                reasons.append("No behavioral anomalies detected")
+
+            result = {
+                'behavioral_score': round(fraud_score, 2),
+                'risk_level': level,
+                'reason': reasons,
+                'check': 'BEHAVIORAL_ANOMALY_RULE_BASED'
+            }
+
+        print(f"✅ [ML Behavioral] Score: {result['behavioral_score']:.3f}, Level: {result['risk_level']}")
         return jsonify(result)
 
     except Exception as e:
-        print(f"❌ [Behavioral Check] Error: {str(e)}")
+        print(f"❌ [ML Behavioral Check] Error: {str(e)}")
         return jsonify({
             'behavioral_score': 0.0,
             'risk_level': 'low',
-            'reason': f'Behavioral check unavailable: {str(e)}',
-            'check': 'BEHAVIORAL_ANOMALY'
+            'reason': f'ML behavioral check unavailable: {str(e)}',
+            'check': 'BEHAVIORAL_ANOMALY_ERROR'
         }), 500
 
 # ========================

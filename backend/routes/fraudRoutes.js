@@ -129,7 +129,7 @@ router.get('/dashboard', async (req, res) => {
     const flaggedWorkers = await fraudValidationService.getFlaggedWorkers('high');
 
     // Get ALL claims sorted by newest first
-    const allClaims = await Claim.find({}).sort({ createdAt: -1 }).limit(20).lean();
+    const allClaims = await Claim.find({}).sort({ createdAt: -1 }).lean();
     
     console.log(`✅ Found ${allClaims.length} total claims in dashboard query`);
     console.log(`📈 Stats: Total=${stats.totalClaims}, Auto-Approved=${stats.autoApproved}, Flagged=${stats.flaggedForManualReview}`);
@@ -139,17 +139,17 @@ router.get('/dashboard', async (req, res) => {
       data: {
         statistics: stats,
         flaggedWorkers: flaggedWorkers.slice(0, 5),
-        recentHighRiskClaims: allClaims.filter(c => (c.fraudScore ?? 0.1) > 0.7),
+        allClaims: allClaims,
+        recentHighRiskClaims: allClaims.filter(c => c.fraudScore !== undefined && c.fraudScore !== null && c.fraudScore > 0.7),
         suspiciousPatterns: {
           totalFlagged: (stats.highRiskClaims || 0) + (stats.mediumRiskClaims || 0),
           requiring_manual_review: (stats.mediumRiskClaims || 0) + (stats.highRiskClaims || 0),
           rejected_automatically: 0,
-          auto_approved: stats.autoApproved || 0
+          auto_approved: stats.autoApproved || 0,
+          unknown: stats.unknownClaims || 0
         }
-      },
-      timestamp: new Date().toISOString()
+      }
     });
-
   } catch (error) {
     console.error('❌ Dashboard error:', error);
     res.status(500).json({

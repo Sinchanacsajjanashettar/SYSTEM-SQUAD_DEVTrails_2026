@@ -16,7 +16,7 @@ import json
 # Import custom fraud detectors
 from fraud_detection_gps import GPSSpoofingDetector
 from fraud_detection_weather import WeatherClaimValidator
-from fraud_detection_behavioral import BehavioralAnomalyDetector
+from fraud_detection_behavioral import BehavioralFraudDetector
 
 class EnsembleFraudDetector:
     """
@@ -27,7 +27,7 @@ class EnsembleFraudDetector:
     def __init__(self):
         self.gps_detector = GPSSpoofingDetector(max_speed_kmh=120, teleport_threshold_km=100)
         self.weather_validator = WeatherClaimValidator()
-        self.behavioral_detector = BehavioralAnomalyDetector()
+        self.behavioral_detector = BehavioralFraudDetector()
         
         # Load pre-trained models if available, else initialize
         self.rf_model = self._load_or_create_model('random_forest_model.pkl')

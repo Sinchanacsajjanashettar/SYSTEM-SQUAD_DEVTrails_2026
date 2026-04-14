@@ -245,25 +245,35 @@ class FraudValidationService {
       
       console.log(`📊 getFraudStatistics: Found ${allClaims.length} total claims in DB`);
 
-      // Categorize by fraud score (default to 0.1 if not set - parametric auto-approved claims)
-      const highRisk = allClaims.filter(c => (c.fraudScore ?? 0.1) > 0.7).length;
-      const mediumRisk = allClaims.filter(c => {
-        const score = c.fraudScore ?? 0.1;
-        return score > 0.4 && score <= 0.7;
-      }).length;
-      const lowRisk = allClaims.filter(c => (c.fraudScore ?? 0.1) <= 0.4).length;
+      const knownClaims = allClaims.filter(c => c.fraudScore !== undefined && c.fraudScore !== null);
+      const unknownClaims = allClaims.length - knownClaims.length;
+
+      const highRisk = knownClaims.filter(c => c.fraudScore > 0.7).length;
+      const mediumRisk = knownClaims.filter(c => c.fraudScore > 0.4 && c.fraudScore <= 0.7).length;
+      const lowRisk = knownClaims.filter(c => c.fraudScore <= 0.4).length;
 
       const fraudRate = allClaims.length > 0 
         ? (highRisk / allClaims.length * 100).toFixed(2)
         : 0;
 
-      console.log(`✅ Stats: Total=${allClaims.length}, Low=${lowRisk}, Med=${mediumRisk}, High=${highRisk}`);
+      // Calculate percentages relative to total claims to avoid mislabeling unknown scores as low risk
+      const highRiskPercent = allClaims.length > 0 ? ((highRisk / allClaims.length) * 100).toFixed(1) : 0;
+      const mediumRiskPercent = allClaims.length > 0 ? ((mediumRisk / allClaims.length) * 100).toFixed(1) : 0;
+      const lowRiskPercent = allClaims.length > 0 ? ((lowRisk / allClaims.length) * 100).toFixed(1) : 0;
+      const unknownPercent = allClaims.length > 0 ? ((unknownClaims / allClaims.length) * 100).toFixed(1) : 0;
+
+      console.log(`✅ Stats: Total=${allClaims.length}, Low=${lowRisk}, Med=${mediumRisk}, High=${highRisk}, Unknown=${unknownClaims}`);
 
       return {
         totalClaims: allClaims.length,
         highRiskClaims: highRisk,
         mediumRiskClaims: mediumRisk,
         lowRiskClaims: lowRisk,
+        unknownClaims,
+        highRiskPercent: parseFloat(highRiskPercent),
+        mediumRiskPercent: parseFloat(mediumRiskPercent),
+        lowRiskPercent: parseFloat(lowRiskPercent),
+        unknownPercent: parseFloat(unknownPercent),
         fraudRate: parseFloat(fraudRate),
         flaggedForManualReview: mediumRisk + highRisk,
         autoApproved: lowRisk

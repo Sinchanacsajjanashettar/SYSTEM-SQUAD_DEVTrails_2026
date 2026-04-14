@@ -13,6 +13,7 @@ const fraudValidationService = require("./fraudValidationService");
  */
 exports.verifyPolicyCoverage = async (workerId, triggerType) => {
   try {
+    console.log('🔍 [verifyPolicyCoverage] Checking policy for worker:', workerId, 'trigger:', triggerType);
     const policy = await Policy.findOne({
       workerId,
       active: true,
@@ -20,6 +21,8 @@ exports.verifyPolicyCoverage = async (workerId, triggerType) => {
       coverageStartDate: { $lte: new Date() },
       coverageEndDate: { $gte: new Date() }
     });
+
+    console.log('📋 [verifyPolicyCoverage] Found policy:', policy ? `ID: ${policy._id}` : 'NO POLICY');
 
     if (!policy) {
       return { covered: false, reason: 'No active policy found' };
@@ -35,7 +38,11 @@ exports.verifyPolicyCoverage = async (workerId, triggerType) => {
     };
 
     const enabledTrigger = triggerMap[triggerType];
+    console.log('🎯 [verifyPolicyCoverage] Mapped trigger:', triggerType, '→', enabledTrigger);
+    console.log('🎯 [verifyPolicyCoverage] Enabled triggers:', policy.enabledTriggers);
+    
     if (!policy.enabledTriggers[enabledTrigger]) {
+      console.log('❌ [verifyPolicyCoverage] Trigger not enabled:', enabledTrigger);
       return { covered: false, reason: `${triggerType} not covered under current policy` };
     }
 
@@ -73,14 +80,21 @@ exports.checkDuplicateClaim = async (workerId, triggerType) => {
  */
 exports.createAutoApprovedClaim = async (workerId, triggerData) => {
   try {
+    console.log('🔍 Creating auto-approved claim for worker:', workerId);
+    console.log('📋 Trigger Data:', triggerData);
+
     // Step 1: Verify worker exists and has active policy
     const worker = await Worker.findById(workerId);
     if (!worker) {
+      console.error('❌ Worker not found:', workerId);
       throw new Error('Worker not found');
     }
+    console.log('✅ Worker found:', worker.name);
 
     // Step 2: Verify policy coverage
+    console.log('🔐 Verifying policy coverage for trigger:', triggerData.trigger);
     const coverageCheck = await exports.verifyPolicyCoverage(workerId, triggerData.trigger);
+    console.log('📍 Coverage check result:', coverageCheck);
     if (!coverageCheck.covered) {
       console.log(`❌ Claim blocked: ${coverageCheck.reason}`);
       return {
@@ -89,6 +103,7 @@ exports.createAutoApprovedClaim = async (workerId, triggerData) => {
         claim: null
       };
     }
+    console.log('✅ Policy coverage verified');
 
     // Step 3: Check for duplicate claims
     const noDuplicate = await exports.checkDuplicateClaim(workerId, triggerData.trigger);

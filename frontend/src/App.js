@@ -6,6 +6,7 @@ import Register from './pages/Register';
 import Dashboard from './pages/Dashboard_new';
 import DashboardAnalytics from './pages/Dashboard_Analytics';
 import AdminFraudDashboard from './pages/AdminFraudDashboard';
+import FraudAnalysisDashboard from './pages/FraudAnalysisDashboard';
 import Policy from './pages/Policy';
 
 function App() {
@@ -24,6 +25,7 @@ function App() {
           <Route path="/dashboard" element={isAuthenticated ? <DashboardAnalytics /> : <Navigate to="/login" />} />
           <Route path="/dashboard-v1" element={isAuthenticated ? <Dashboard /> : <Navigate to="/login" />} />
           <Route path="/admin-fraud" element={isAuthenticated ? <AdminFraudDashboard /> : <Navigate to="/login" />} />
+          <Route path="/fraud-analysis" element={isAuthenticated ? <FraudAnalysisDashboard /> : <Navigate to="/login" />} />
           <Route path="/policy" element={isAuthenticated ? <Policy /> : <Navigate to="/login" />} />
           
           {/* Default Route */}

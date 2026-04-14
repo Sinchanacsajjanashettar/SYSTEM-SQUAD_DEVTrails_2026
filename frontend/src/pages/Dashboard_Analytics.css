@@ -363,9 +363,10 @@
 
 /* Stats Grid */
 .stats-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  display: flex;
+  flex-wrap: wrap;
   gap: 15px;
+  justify-content: space-between;
 }
 
 .stat-box {
@@ -374,6 +375,14 @@
   border-radius: 8px;
   text-align: center;
   border: 2px solid #667eea;
+  flex: 1;
+  min-width: 200px;
+  max-width: 250px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  height: 100px; /* Fixed height for consistent alignment */
 }
 
 .stat-value {
@@ -810,7 +819,7 @@
   }
 
   .stats-grid {
-    grid-template-columns: repeat(2, 1fr);
+    justify-content: center;
   }
 }
 
@@ -841,11 +850,13 @@
   }
 
   .stats-grid {
-    grid-template-columns: repeat(2, 1fr);
+    flex-direction: column;
+    align-items: center;
   }
 
-  .action-footer {
-    flex-direction: column;
+  .stat-box {
+    min-width: 250px;
+    max-width: 100%;
   }
 }
 

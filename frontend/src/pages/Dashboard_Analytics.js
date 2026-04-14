@@ -129,11 +129,11 @@ const DashboardAnalytics = () => {
           congestionIndex: envRes.data.currentEnvironment.congestionIndex
         });
       } else {
-        // Fallback to random data if endpoint doesn't return environment
+        // Fallback to test data with temperature above threshold for demo
         setEnvironmentData({
           rainfall: Math.random() * 100,
           aqi: Math.round(50 + Math.random() * 400),
-          temperature: 25 + Math.random() * 20,
+          temperature: 46 + Math.random() * 10, // Set temperature above 45°C threshold
           congestionIndex: Math.random() * 10
         });
       }
@@ -260,12 +260,21 @@ const DashboardAnalytics = () => {
     }
 
     try {
+      // Map trigger types to backend expected format
+      const triggerTypeMap = {
+        rainfall: 'HEAVY_RAINFALL',
+        pollution: 'SEVERE_POLLUTION',
+        heat: 'EXTREME_HEAT',
+        congestion: 'SEVERE_CONGESTION'
+      };
+
       const claimPayload = {
         workerId,
-        claimAmount: triggerInfo.claimAmount,
-        claimType: triggerType,
-        status: 'approved',
-        triggerReason: `${triggerType.charAt(0).toUpperCase() + triggerType.slice(1)}: ${triggerInfo.actualData} > ${triggerInfo.threshold} threshold`
+        triggerData: {
+          trigger: triggerTypeMap[triggerType],
+          claimAmount: triggerInfo.claimAmount,
+          value: triggerInfo.actualData
+        }
       };
 
       const response = await axios.post('http://localhost:5000/api/claims/auto-approve', claimPayload);
@@ -285,13 +294,15 @@ const DashboardAnalytics = () => {
       }, 2000);
 
     } catch (err) {
+      console.error('❌ Claim error:', err);
+      const errorMessage = err.response?.data?.reason || err.response?.data?.error || 'Could not process claim';
       setSuccessMessage({
         type: 'error',
         title: '❌ Claim Failed',
-        message: err.response?.data?.error || 'Could not process claim',
-        duration: 4000
+        message: errorMessage,
+        duration: 5000
       });
-      setTimeout(() => setSuccessMessage(null), 4000);
+      setTimeout(() => setSuccessMessage(null), 5000);
     }
   };
 
@@ -316,7 +327,7 @@ const DashboardAnalytics = () => {
         <div className="card-content">
           <div className="earnings-display">
             <div className="amount">
-              ₹{policy?.finalPremium || policy?.basePremium || 498}/week
+              ₹{policy?.policy?.weeklyPremium || policy?.finalPremium || policy?.basePremium || 498}/week
             </div>
             <div className="description">Weekly Coverage Active</div>
           </div>
@@ -330,11 +341,11 @@ const DashboardAnalytics = () => {
           <div className="coverage-info">
             <div className="info-row">
               <span>Protection Until</span>
-              <span className="value">{formatClaimDate(policy?.expiryDate || policy?.coverageEndDate)}</span>
+              <span className="value">{formatClaimDate(policy?.policy?.coverageEndDate || policy?.expiryDate || policy?.coverageEndDate)}</span>
             </div>
             <div className="info-row">
               <span>Hours Covered</span>
-              <span className="value">{policy?.hoursPerWeek || 50}/week</span>
+              <span className="value">{policy?.policy?.coverageHours || policy?.hoursPerWeek || 50}/week</span>
             </div>
           </div>
         </div>
@@ -436,17 +447,17 @@ const DashboardAnalytics = () => {
         <div className="coverage-details">
           <div className="coverage-row">
             <span className="label">Base Premium</span>
-            <span className="value">₹{policy?.basePremium || 500}</span>
+            <span className="value">₹{policy?.policy?.weeklyPremium || policy?.basePremium || 500}</span>
           </div>
-          {policy?.safeZoneDiscount > 0 && (
+          {policy?.policy?.appliedDiscounts?.length > 0 && (
             <div className="coverage-row discount">
-              <span className="label">Safe Zone Discount</span>
-              <span className="value">-₹{policy.safeZoneDiscount}</span>
+              <span className="label">Discount Applied</span>
+              <span className="value">-₹{policy.policy.appliedDiscounts.reduce((sum, d) => sum + d.amount, 0)}</span>
             </div>
           )}
           <div className="coverage-row total">
             <span className="label">Final Premium</span>
-            <span className="value">₹{policy?.finalPremium || policy?.basePremium || 498}</span>
+            <span className="value">₹{policy?.policy?.weeklyPremium || policy?.finalPremium || policy?.basePremium || 498}</span>
           </div>
 
           <div className="triggers-list">
