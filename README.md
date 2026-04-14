@@ -81,28 +81,28 @@ Trigger Detected → Policy Verified → Fraud Check (3 models) → Auto-Approve
 ### 🖥️ Worker Dashboard
 > Live environmental monitoring, claim history, payment tracking, and trigger simulation
 
-![Worker Dashboard](screenshot-worker-dashboard.png)
+![Worker Dashboard](assets/screenshot-worker-dashboard.png)
 
 ---
 
 ### 🔐 Fraud Monitor
 > Real-time fraud risk distribution, detection source breakdown, and flagged worker review
 
-![Fraud Monitor](screenshot-fraud-monitor.png)
+![Fraud Monitor](assets/screenshot-fraud-monitor.png)
 
 ---
 
 ### 🤖 ML Analysis — Claims with Fraud Scores
 > Every claim scored across GPS, Weather, and Behavioral models with risk classification
 
-![ML Analysis](screenshot-ml-analysis.png)
+![ML Analysis](assets/screenshot-ml-analysis.png)
 
 ---
 
 ### 📋 My Policy — AI Premium Calculator
 > Set custom risk thresholds, check zone safety, and get an AI-calculated weekly premium
 
-![My Policy](screenshot-my-policy.png)
+![My Policy](assets/screenshot-my-policy.png)
 
 ---
 
