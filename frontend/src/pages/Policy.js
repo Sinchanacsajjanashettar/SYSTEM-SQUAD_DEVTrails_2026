@@ -129,15 +129,37 @@ const Policy = () => {
     setError('');
     
     try {
-      const res = await axios.post('http://localhost:5000/api/policy/create', {
+      // Add all required fields
+      const policyPayload = {
         workerId: workerData.workerId,
-        coveragePeriod: coveragePeriod,
-        riskParameters: riskParams
-      });
-      setPolicy(res.data);
+        coveragePeriod: coveragePeriod || 'weekly',
+        coverageHours: 50, // Default coverage hours
+        dailyIncome: workerData.dailyIncome || 700, // Include worker's daily income
+        platform: workerData.platform || 'Zomato',
+        location: workerData.location || ''
+      };
+
+      console.log('Creating policy with payload:', policyPayload);
+
+      const res = await axios.post('http://localhost:5000/api/policy/create', policyPayload);
+      
+      if (res.data) {
+        setPolicy(res.data.policy || res.data);
+        setError('');
+      }
     } catch (err) {
       console.error("Policy creation error:", err);
-      setError(err.response?.data?.message || err.message || "Error generating policy");
+      
+      // Better error handling
+      if (err.response?.status === 400) {
+        setError(`Bad Request: ${err.response.data?.message || 'Please fill all required fields'}`);
+      } else if (err.response?.status === 404) {
+        setError("Worker not found. Please register first.");
+      } else if (err.response?.status === 409) {
+        setError("You already have an active policy. Use Dashboard to manage it.");
+      } else {
+        setError(err.response?.data?.message || err.message || "Error generating policy");
+      }
     } finally {
       setLoading(false);
     }
@@ -477,15 +499,15 @@ const Policy = () => {
           <div className="grid md:grid-cols-3 gap-6">
             <div className="bg-white p-6 rounded-2xl shadow-sm border border-blue-200">
               <p className="text-xs font-bold text-gray-600 mb-2">WEEKLY PREMIUM</p>
-              <p className="text-3xl font-bold text-blue-600">₹{Math.round(policy.policy.weeklyPremium)}</p>
+              <p className="text-3xl font-bold text-blue-600">₹{Math.round(policy?.weeklyPremium || policy?.policy?.weeklyPremium || 0)}</p>
             </div>
             <div className="bg-white p-6 rounded-2xl shadow-sm border border-blue-200">
               <p className="text-xs font-bold text-gray-600 mb-2">MONTHLY PREMIUM</p>
-              <p className="text-3xl font-bold text-blue-600">₹{Math.round(policy.policy.monthlyPremium)}</p>
+              <p className="text-3xl font-bold text-blue-600">₹{Math.round(policy?.monthlyPremium || policy?.policy?.monthlyPremium || 0)}</p>
             </div>
             <div className="bg-white p-6 rounded-2xl shadow-sm border border-blue-200">
               <p className="text-xs font-bold text-gray-600 mb-2">COVERAGE HOURS/DAY</p>
-              <p className="text-3xl font-bold text-blue-600">{policy.policy.coverageHours}h</p>
+              <p className="text-3xl font-bold text-blue-600">{policy?.coverageHours || policy?.policy?.coverageHours || 12}h</p>
             </div>
           </div>
 
@@ -493,16 +515,16 @@ const Policy = () => {
             <h4 className="text-xl font-bold mb-4">📊 Premium Breakdown</h4>
             <div className="space-y-3 bg-gray-50 p-4 rounded-lg">
               <div className="flex justify-between">
-                <span>Base Premium ({policy.policy.platform}):</span>
-                <span className="font-bold">₹{Math.round(policy.premiumBreakdown.basePremium)}</span>
+                <span>Weekly Premium:</span>
+                <span className="font-bold">₹{Math.round(policy?.weeklyPremium || policy?.policy?.weeklyPremium || 0)}</span>
               </div>
               <div className="flex justify-between">
-                <span>Location Adjustment ({policy.premiumBreakdown.location}):</span>
-                <span className="font-bold">₹{Math.round(policy.premiumBreakdown.mlAdjustment)}</span>
+                <span>Monthly Premium:</span>
+                <span className="font-bold">₹{Math.round(policy?.monthlyPremium || policy?.policy?.monthlyPremium || 0)}</span>
               </div>
               <div className="border-t pt-3 flex justify-between font-bold text-blue-600">
-                <span>Final Weekly Premium:</span>
-                <span>₹{Math.round(policy.policy.weeklyPremium)}</span>
+                <span>Total Protected:</span>
+                <span>₹{Math.round(policy?.maxCoverageAmount || policy?.policy?.maxCoverageAmount || 5000)}</span>
               </div>
             </div>
           </div>

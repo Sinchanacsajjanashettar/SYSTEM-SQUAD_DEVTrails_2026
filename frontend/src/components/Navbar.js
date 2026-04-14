@@ -17,8 +17,9 @@ const Navbar = () => {
         <Shield size={28} /> GigShield AI
       </Link>
       <div className="flex gap-6 items-center">
-        <Link to="/dashboard" className="text-gray-600 hover:text-blue-600">Dashboard</Link>
-        <Link to="/policy" className="text-gray-600 hover:text-blue-600">My Policy</Link>
+        <Link to="/dashboard" className="text-gray-600 hover:text-blue-600 font-medium">📊 Dashboard</Link>
+        <Link to="/admin-fraud" className="text-gray-600 hover:text-red-600 font-medium">🔒 Fraud Monitor</Link>
+        <Link to="/policy" className="text-gray-600 hover:text-blue-600 font-medium">📋 My Policy</Link>
         {workerName && (
           <div className="flex items-center gap-4 border-l pl-6">
             <span className="text-sm font-medium text-gray-700">Hi, {workerName}</span>

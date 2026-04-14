@@ -5,6 +5,8 @@ const cors = require("cors");
 const workerRoutes = require("./routes/workerRoutes");
 const policyRoutes = require("./routes/policyRoutes");
 const claimRoutes = require("./routes/claimRoutes");
+const paymentRoutes = require("./routes/paymentRoutes");
+const fraudRoutes = require("./routes/fraudRoutes");
 
 const { getWeather } = require("./services/weatherService");
 const { checkAllTriggers } = require("./services/triggerService");
@@ -21,6 +23,8 @@ app.use(express.json());
 app.use("/api/workers", workerRoutes);
 app.use("/api/policy", policyRoutes);
 app.use("/api/claims", claimRoutes);
+app.use("/api/payments", paymentRoutes);
+app.use("/api/fraud", fraudRoutes);
 
 // DB Connection
 mongoose.connect("mongodb://127.0.0.1:27017/gigshield")

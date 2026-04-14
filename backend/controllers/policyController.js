@@ -12,13 +12,23 @@ const {
  */
 exports.createPolicy = async (req, res) => {
   try {
-    const { workerId, coveragePeriod = 'weekly', applyDiscountCode } = req.body;
+    const { workerId, coveragePeriod = 'weekly', coverageHours = 50, platform, location, dailyIncome = 700, applyDiscountCode } = req.body;
+
+    // Validate workerId
+    if (!workerId) {
+      return res.status(400).json({ message: "Worker ID is required" });
+    }
 
     // Verify worker exists
     const worker = await Worker.findById(workerId);
     if (!worker) {
       return res.status(404).json({ message: "Worker not found" });
     }
+
+    // Use provided fields or fallback to worker's stored fields
+    const workerPlatform = platform || worker.platform || 'Zomato';
+    const workerLocation = location || worker.location || 'Bangalore';
+    const workerDailyIncome = dailyIncome || worker.dailyIncome || 700;
 
     // Check if worker already has an active policy
     const existingPolicy = await Policy.findOne({
@@ -28,7 +38,7 @@ exports.createPolicy = async (req, res) => {
     });
 
     if (existingPolicy) {
-      return res.status(400).json({ 
+      return res.status(409).json({ 
         message: "Worker already has an active policy",
         existingPolicy
       });
@@ -36,13 +46,13 @@ exports.createPolicy = async (req, res) => {
 
     // Calculate premium using ML model
     const premiumData = await calculateFinalPremium({
-      platform: worker.platform,
-      location: worker.location,
-      dailyIncome: worker.dailyIncome
+      platform: workerPlatform,
+      location: workerLocation,
+      dailyIncome: workerDailyIncome
     });
 
     // Get available discounts
-    const availableDiscounts = getAvailableDiscounts(worker.location, worker.platform);
+    const availableDiscounts = getAvailableDiscounts(workerLocation, workerPlatform);
 
     // Apply discount if provided
     let finalWeeklyPremium = premiumData.finalWeeklyPremium;
