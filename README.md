@@ -1,11 +1,6 @@
 # GigShield AI 🛡️
 ### AI-Powered Parametric Insurance for Gig Workers
 
-[![MIT License](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)](LICENSE)
-[![AI Powered](https://img.shields.io/badge/AI%20Powered-ML%20Models-blue?style=for-the-badge)](#)
-[![Fraud Detection](https://img.shields.io/badge/Fraud%20Detection-92%25%20Accuracy-orange?style=for-the-badge)](#)
-[![Processing Time](https://img.shields.io/badge/Claims-Under%205%20Seconds-success?style=for-the-badge)](#)
-
 > Protecting gig delivery workers from income loss — automatically, instantly, and intelligently.
 
 ---
@@ -280,21 +275,6 @@ GigShield-AI/
 
 ---
 
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/YourFeature`)
-3. Commit your changes (`git commit -m 'Add YourFeature'`)
-4. Push to the branch (`git push origin feature/YourFeature`)
-5. Open a Pull Request
-
----
-
-## 📄 License
-
-This project is licensed under the [MIT License](LICENSE).
-
----
 
 ## 👥 Team
 
