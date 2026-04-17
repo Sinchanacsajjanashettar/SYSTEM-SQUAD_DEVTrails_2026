@@ -140,7 +140,8 @@ Trigger Detected → Policy Verified → Fraud Check (3 models) → Auto-Approve
 Quick Start
 ---
 ```bash
-git clone https://github.com/Sinchanacsajjanashettar/SYSTEM-SQUAD_DEVTrails_2026.git cd SYSTEM-SQUAD_DEVTrails_2026
+git clone https://github.com/Sinchanacsajjanashettar/SYSTEM-SQUAD_DEVTrails_2026.git
+cd SYSTEM-SQUAD_DEVTrails_2026
 ```
 Then follow the setup instructions below.
 ## 🚀 Getting Started
