@@ -243,6 +243,12 @@ GigShield-AI/
 
 ---
 
+##Pitch Deck Link
+https://1drv.ms/p/c/53ea51c0769d866b/IQBzMQ3WfvTTTLe_TiZtdzKVAX5f_XjDWWc5kzcSonGVEvA?e=n0XTDT
+
+##Demo Link
+https://youtu.be/TV4jS5pLlhs?si=mbyXxFbWeW51s2a0
+
 ## 🔒 Security
 
 - Password hashing
