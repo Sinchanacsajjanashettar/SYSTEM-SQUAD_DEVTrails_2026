@@ -136,7 +136,8 @@ Trigger Detected → Policy Verified → Fraud Check (3 models) → Auto-Approve
 | **APIs** | OpenWeatherMap, AQI API |
 
 ---
----Quick Start
+---
+Quick Start
 ---
 ```bash
 git clone https://github.com/Sinchanacsajjanashettar/SYSTEM-SQUAD_DEVTrails_2026.git cd SYSTEM-SQUAD_DEVTrails_2026
