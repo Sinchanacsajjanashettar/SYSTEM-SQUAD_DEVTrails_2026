@@ -136,7 +136,12 @@ Trigger Detected → Policy Verified → Fraud Check (3 models) → Auto-Approve
 | **APIs** | OpenWeatherMap, AQI API |
 
 ---
-
+---Quick Start
+---
+```bash
+git clone https://github.com/Sinchanacsajjanashettar/SYSTEM-SQUAD_DEVTrails_2026.git cd SYSTEM-SQUAD_DEVTrails_2026
+```
+Then follow the setup instructions below.
 ## 🚀 Getting Started
 
 ### Prerequisites
@@ -147,11 +152,24 @@ Trigger Detected → Policy Verified → Fraud Check (3 models) → Auto-Approve
 | Python | 3.8+ |
 | MongoDB | 5.0+ |
 
+---
+🔑 Environment Setup
+---
+
+Create a .env file inside the backend folder:
+
+PORT=5000
+MONGO_URI=your_mongodb_connection_string
+WEATHER_API_KEY=your_api_key
+AQI_API_KEY=your_api_key
+
+Note: If API keys are not provided, the system can run using simulated/demo data.
+
 ### Installation
 
 ```bash
 # 1. Clone the repository
-git clone https://github.com/YOUR_USERNAME/GigShield-AI.git
+git clone https://github.com/Sinchanacsajjanashettar/SYSTEM-SQUAD_DEVTrails_2026.git
 cd GigShield-AI
 ```
 
@@ -200,6 +218,15 @@ curl http://localhost:5001/api/status   # ML Server
 ```
 
 ---
+---
+⚠️ Troubleshooting
+---
+---
+Make sure MongoDB is running before starting backend.
+If ports are already in use, change ports in config files.
+If ML server fails, run:python train_ml_models.py
+Ensure correct Node.js and Python versions are installed.
+
 
 ## 🧪 Demo Walkthrough
 
