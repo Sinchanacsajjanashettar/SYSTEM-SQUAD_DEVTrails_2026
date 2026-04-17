@@ -172,7 +172,7 @@ Note: If API keys are not provided, the system can run using simulated/demo data
 ```bash
 # 1. Clone the repository
 git clone https://github.com/Sinchanacsajjanashettar/SYSTEM-SQUAD_DEVTrails_2026.git
-cd GigShield-AI
+cd SYSTEM-SQUAD_DEVTrails_2026
 ```
 
 Open **4 separate terminals** and run:
